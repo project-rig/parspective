@@ -1,0 +1,5 @@
+.*
+*.swp
+*~
+pip-selfcheck.json
+*.pyc
