@@ -6,27 +6,26 @@ import cairocffi as cairo
 
 from collections import defaultdict
 
-from math import sin, cos, atan2, pi, sqrt
+from math import sin, cos, atan2, pi
 
-from six import iteritems, itervalues, next
+from six import iteritems, itervalues
 
 from rig.geometry import shortest_torus_path, shortest_mesh_path
 
 from rig.machine import Links, Cores
 
 from rig.netlist import Net
+
 from rig.place_and_route.constraints import ReserveResourceConstraint
 
 from rig.place_and_route.routing_tree import RoutingTree
-
-import rig
 
 from parspective.geometry import get_core_ring_position
 
 from parspective.style import PolygonStyle
 
 
-default_chip_style = PolygonStyle(fill=(1.0, 1.0, 1.0, 0.0),
+default_chip_style = PolygonStyle(fill=(1.0, 1.0, 1.0, 1.0),
                                   stroke=(0.0, 0.0, 0.0, 1.0),
                                   line_width=0.03)
 
@@ -37,11 +36,13 @@ default_link_style = PolygonStyle(fill=(0.5, 0.5, 0.5, 0.2),
 default_core_style = PolygonStyle(fill=(0.0, 0.0, 1.0, 1.0),
                                   stroke=(0.0, 0.0, 0.0, 0.0),
                                   line_width=0.005)
-# Style for non-allocated cores
+
+# Style non-allocated cores differently by default
 default_core_style.set(None, "fill", (1.0, 1.0, 1.0, 0.5))
 default_core_style.set(None, "stroke", (0.0, 0.0, 1.0, 1.0))
 
 default_net_style = PolygonStyle(stroke=(1.0, 0.0, 0.0, 0.5))
+
 
 class Diagram(object):
     """A SpiNNaker machine placement diagram."""
@@ -65,7 +66,7 @@ class Diagram(object):
             net_min_line_width=0.005,
             net_weight_scale=None,
             # Ratsnest style parameters
-            ratsnest_alpha=0.5,
+            ratsnest_alpha=1.0,
             ratsnest_arc_height=0.1,
             ratsnest_loop_height=0.5,
             ratsnest_loop_angle=pi / 5.0):
@@ -234,9 +235,9 @@ class Diagram(object):
         # Add cores reserved by ReserveResourceConstraints.
         for constraint in self.constraints:
             if isinstance(constraint, ReserveResourceConstraint):
-                if constraint.resource == self.core_resource:
+                if constraint.resource == self.core_resource:  # pragma: no branch
                     if constraint.location is None:
-                        locations = iter(machine)
+                        locations = iter(self.machine)
                     else:
                         locations = [constraint.location]
                     for xy in locations:
@@ -259,7 +260,7 @@ class Diagram(object):
         # {(x, y, link): [Net, ...]
         self._link_nets = defaultdict(list)
         
-        for net, tree in iteritems(routes):
+        for net, tree in iteritems(self.routes):
             for node in tree:
                 # The tree iterator also iterates over vertices at the leaves of
                 # the tree. Since these do not correspond with segments of the
@@ -318,7 +319,8 @@ class Diagram(object):
                                # chip for cores:
                                   (
                                    # The inner diameter of the chip
-                                   ((1.0 - self.chip_style.get("line_width")) *
+                                   ((1.0 - (self.chip_style.get("line_width") or
+                                            0.0)) *
                                     cos(pi / 6.0)) -
                                    # Take away the space required by gaps
                                    # between cores
@@ -337,7 +339,7 @@ class Diagram(object):
         # Width of the rectangle between a pair of chips which represents a link
         # is simply the size of a side of the hexagon (less the stroke width).
         self._link_width = (sin(pi / 6.0) -
-                            (self.link_style.get("line_width") / 2.0))
+                            ((self.link_style.get("line_width") or 0.0) / 2.0))
         
         # Compute a scaling factor for converting from net weights to stroke
         # with if not supplied.
@@ -351,15 +353,20 @@ class Diagram(object):
             max_allowed_net_width = self._core_diameter * 0.333
             
             # Determine the maximum weight allocated to any net
-            max_net_weight = max(n.weight for n in self.nets)
+            max_net_weight = max((n.weight for n in self.nets), default=0.0)
             
-            self.net_weight_scale = max_allowed_net_width / max_net_weight
+            if max_net_weight > 0:
+                self.net_weight_scale = max_allowed_net_width / max_net_weight
+            else:
+                # No nets have non-zero weights so it really doesn't matter
+                self.net_weight_scale = 0.0
             
             if self.routes:
                 # The maximum width a link full of nets can become without
                 # overflowing.
-                max_allowed_link_width = (self._link_width -
-                                          self.link_style.get("line_width")) * 0.9
+                max_allowed_link_width = (
+                    self._link_width -
+                    (self.link_style.get("line_width") or 0.0) * 0.9)
                 
                 # Find the link with the largest combined weight of nets (including
                 # spaces between them the same width as the net).
@@ -369,10 +376,11 @@ class Diagram(object):
                     max_link_weight = max(max_link_weight, link_weight)
                 
                 # Select the scaling factor which satisfies the above conditions.
-                self.net_weight_scale = min(
-                    self.net_weight_scale,
-                    max_allowed_link_width / max_link_weight
-                )
+                if max_link_weight > 0.0:
+                    self.net_weight_scale = min(
+                        self.net_weight_scale,
+                        max_allowed_link_width / max_link_weight
+                    )
     
     
     def _opposite_link(self, x, y, link):
@@ -515,8 +523,8 @@ class Diagram(object):
         angle = -link * (pi / 3.0)
         
         # Move to the center of the given edge
-        offset = (0.5 * cos(pi / 6.0)) + (self.chip_style.get("line_width") /
-                                          2.0)
+        offset = (0.5 * cos(pi / 6.0)) + (
+            (self.chip_style.get("line_width") or 0.0) / 2.0)
         x += offset * cos(angle)
         y += offset * sin(angle)
         
@@ -609,7 +617,7 @@ class Diagram(object):
         
         # Expand to fit half a chip-to-chip gap plus the fade-out-distance on
         # all sides of the diagram.
-        spacing = (((1.0 + self.chip_style.get("line_width")) / 2.0) +
+        spacing = (((1.0 + (self.chip_style.get("line_width") or 0.0)) / 2.0) +
                    self.chip_spacing)
         x1 -= spacing
         y1 -= spacing
@@ -626,18 +634,19 @@ class Diagram(object):
         This iterator essentially lists all the links which must be drawn in the
         image and thus lists wrap-around links from both ends.
         """
-        for x, y in machine:
+        for x, y in self.machine:
             for direction in Links:
-                if (x, y, direction) in machine:
+                if (x, y, direction) in self.machine:
                     # Determine if the other chip is at the other end of
                     # a wrap-around.
                     dx, dy = direction.to_vector()
                     x2 = x + dx
                     y2 = y + dy
-                    wraps_around = (x2, y2) not in machine
+                    wraps_around = (x2, y2) not in self.machine
                     
-                    destination_exists = (x2 % machine.width,
-                                          y2 % machine.height) in machine
+                    destination_exists = (
+                        x2 % self.machine.width,
+                        y2 % self.machine.height) in self.machine
                     
                     # Don't list links from both ends (unless wrapping
                     # around) and don't list links to dead chips.
@@ -672,7 +681,7 @@ class Diagram(object):
             bx1, by1, bx2, by2 = self._link(x2, y2, link.opposite)
             
             # Determine if the link is a wrap-around
-            wraps_around = (x2, y2) not in machine
+            wraps_around = (x2, y2) not in self.machine
             
             # Draw link fill
             fill = style.get("fill")
@@ -726,7 +735,7 @@ class Diagram(object):
             ctx.arc(cx, cy, self._core_diameter / 2.0, 0.0, 2.0 * pi)
     
     
-    def _draw_ratswire(self, sx, sy, sc, dx, dy, dc):
+    def _draw_ratswire(self, ctx, sx, sy, sc, dx, dy, dc):
         """Add a wire between the specified cores to the current Cairo path.
         
         Does not stroke the path!
@@ -735,7 +744,8 @@ class Diagram(object):
         # available.
         if self.has_wrap_around_links:
             vx, vy, vz = shortest_torus_path((sx, sy, 0), (dx, dy, 0),
-                                             machine.width, machine.height)
+                                             self.machine.width,
+                                             self.machine.height)
         else:
             vx, vy, vz = shortest_mesh_path((sx, sy, 0), (dx, dy, 0))
         
@@ -743,8 +753,8 @@ class Diagram(object):
         vx -= vz
         vy -= vz
         
-        wraps_x = not (0 <= sx + vx < machine.width)
-        wraps_y = not (0 <= sy + vy < machine.height)
+        wraps_x = not (0 <= sx + vx < self.machine.width)
+        wraps_y = not (0 <= sy + vy < self.machine.height)
         
         # A list of ((x1, y1), (x2, y2)) tuples giving the set of lines to be drawn
         # for this net.
@@ -794,6 +804,27 @@ class Diagram(object):
             ctx.curve_to(mx1, my1, mx2, my2, x2, y2)
     
     
+    def _cores_for_ratsnest(self, vertex):
+        """For use in ratsnest drawing only. Generate a list of (x, y, c) tuples
+        for cores belonging to a vertex, always listing at least one core.
+        
+        If a vertex is not allocated any cores then (x, y, 0) will be generated.
+        This ensures that when a ratsnest is drawn for nets with sources and
+        endpoints without core allocations (e.g. external devices) a wire is
+        always drawn.
+        """
+        x, y = self.placements[vertex]
+        
+        has_cores = False
+        for c, v in iteritems(self._core_map[(x, y)]):
+            if v == vertex:
+                yield (x, y, c)
+                has_cores = True
+        
+        if not has_cores:
+            yield (x, y, 0)
+    
+    
     def _draw_net_ratsnest(self, ctx, net):
         """Draw the ratsnest for a given net."""
         # Build a list of (x, y, p) tuples which give the sources and sinks for
@@ -806,16 +837,15 @@ class Diagram(object):
             line_width = max(line_width, self.net_min_line_width)
             ctx.set_line_width(line_width)
             
+            # Round the caps of lines (aesthetic preference)
+            ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            
             # Draw all-to-all ratsnest connections between every source core and
             # destination core pair.
-            sx, sy = self.placements[net.source]
-            for sc, v in iteritems(self._core_map[(sx, sy)]):
-                if v == net.source:
-                    for destination in net.sinks:
-                        dx, dy = self.placements[destination]
-                        for dc, v in iteritems(self._core_map[(dx, dy)]):
-                            if v == destination:
-                                self._draw_ratswire(sx, sy, sc, dx, dy, dc)
+            for sx, sy, sc in self._cores_for_ratsnest(net.source):
+                for destination in net.sinks:
+                    for dx, dy, dc in self._cores_for_ratsnest(destination):
+                        self._draw_ratswire(ctx, sx, sy, sc, dx, dy, dc)
     
     def _draw_route(self, ctx, net, route, start_points):
         """Add the wires for a route defined by a RoutingTree to the current
@@ -860,13 +890,17 @@ class Diagram(object):
                 x2 = (x + dx) % self.machine.width
                 y2 = (y + dy) % self.machine.height
                 
-                # Draw all routes leaving this chip (possibly heading off the
-                # side of the system if this is a wrapping connection)
+                # Draw routes from starting points to the start of the link
+                # which leaves the chip.
                 for start_xy in start_points:
                     ctx.move_to(*start_xy)
                     ctx.line_to(*self._link_net(x, y, link, net))
-                    ctx.line_to(*self._link_net(x + dx, y + dy, link.opposite,
-                                                net))
+                
+                # Draw the line which traverses the link (possibly heading off
+                # the side of the system if this is a wrapping connection)
+                ctx.move_to(*self._link_net(x, y, link, net))
+                ctx.line_to(*self._link_net(x + dx, y + dy, link.opposite,
+                                            net))
                 
                 # If this is a wrap-around link, draw the link on the other side
                 # of the system
@@ -876,7 +910,7 @@ class Diagram(object):
                 
                 # If the destination is another chip, recursively continue
                 # drawing the routes from there!
-                if isinstance(child, RoutingTree):
+                if isinstance(child, RoutingTree):  # pragma: no cover
                     self._draw_route(ctx, net, child,
                                      [self._link_net(x2, y2, link.opposite,
                                                      net)])
@@ -891,6 +925,12 @@ class Diagram(object):
             line_width = net.weight * self.net_weight_scale
             line_width = max(line_width, self.net_min_line_width)
             ctx.set_line_width(line_width)
+            
+            # Use rounded joints and ends of lines drawn since this is the only
+            # way to guaruntee clean joins between path segments drawn in
+            # seperate steps.
+            ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            ctx.set_line_join(cairo.LINE_JOIN_ROUND)
             
             start_points = []
             sx, sy = self.placements[net.source]
@@ -916,15 +956,15 @@ class Diagram(object):
             
             # Around the edge of the system, fade out along the radius of the
             # chips at the edge.
-            for x in range(machine.width):
-                for y in [0, machine.height - 1]:
+            for x in range(self.machine.width):
+                for y in [0, self.machine.height - 1]:
                     cx, cy = self._chip(x, y)
                     with ctx:
                         ctx.translate(cx, cy)
                         ctx.set_source(gradient)
                         ctx.paint()
-            for y in range(1, machine.height - 1):
-                for x in [0, machine.width - 1]:
+            for y in range(1, self.machine.height - 1):
+                for x in [0, self.machine.width - 1]:
                     cx, cy = self._chip(x, y)
                     with ctx:
                         ctx.translate(cx, cy)
@@ -933,9 +973,9 @@ class Diagram(object):
             
             # Within the bounds of the system, keep all wires
             ctx.move_to(*self._chip(0, 0))
-            ctx.line_to(*self._chip(machine.width - 1, 0))
-            ctx.line_to(*self._chip(machine.width - 1, machine.height - 1))
-            ctx.line_to(*self._chip(0, machine.height - 1))
+            ctx.line_to(*self._chip(self.machine.width - 1, 0))
+            ctx.line_to(*self._chip(self.machine.width - 1, self.machine.height - 1))
+            ctx.line_to(*self._chip(0, self.machine.height - 1))
             ctx.close_path()
             ctx.set_source_rgba(0,0,0,1)
             ctx.fill()
@@ -1000,15 +1040,15 @@ class Diagram(object):
 
 
 if __name__=="__main__":
-    width = 2000
-    height = 1600
+    width = 4000//3
+    height = 3200//3
     
     from rig.machine import Machine
     
     w, h = 96, 60
+    w, h = 48, 24
     w, h = 12, 12
     w, h = 3, 3
-    w, h = 48, 24
     
     machine = Machine(w, h, chip_resources={Cores: 18})
     ## SpiNN-5
@@ -1032,7 +1072,7 @@ if __name__=="__main__":
                                   for x in range(w)
                                   for y in range(h))
     vertices = list(itervalues(ideal_placement))
-    vertices_resources = {v: {Cores: 2} for v in vertices}
+    vertices_resources = {v: {Cores: 1} for v in vertices}
     
     def i(x, y):
         #if x >= w or x < 0 or y >= h or y < 0:
@@ -1040,22 +1080,44 @@ if __name__=="__main__":
         #else:
         return ideal_placement[(x%w, y%h)]
     nets = []
+    constraints = []
     
-    # Nearest-neighbour connectivity
-    nets += [Net(i(x, y),
-                 [xy for xy in [i(x+1,y+1), # Top
-                                i(x+0,y+1),
-                                #i(x-1,y+1), # Left
-                                i(x-1,y+0),
-                                i(x-1,y-1), # Bottom
-                                i(x+0,y-1),
-                                #i(x+1,y-1), # Right
-                                i(x+1,y+0),
-                                i(x+0,y+0),  # Self-loop
-                                ]
-                  if xy is not None], weight=0.3 + random.random()*0.7)
-             for x in range(w)
-             for y in range(h)]
+    # Route-to-link constraint: core to link
+    rtl_vertex = ideal_placement[(1, 0)]
+    vertices_resources[rtl_vertex] = {}
+    from rig.place_and_route.constraints import LocationConstraint, RouteEndpointConstraint
+    from rig.routing_table import Routes
+    constraints.append(LocationConstraint(rtl_vertex, (1, 0)))
+    constraints.append(RouteEndpointConstraint(rtl_vertex, Routes.north_east))
+    nets += [Net(i(0, 0), rtl_vertex)]
+    
+    # Coreless vertex source
+    coreless_vertex = ideal_placement[(0, 1)]
+    vertices_resources[coreless_vertex] = {}
+    nets += [Net(coreless_vertex, i(1, 1))]
+    
+    # Coreless vertex source and sink
+    coreless_source = ideal_placement[(0, 2)]
+    coreless_sink = ideal_placement[(1, 2)]
+    vertices_resources[coreless_source] = {}
+    vertices_resources[coreless_sink] = {}
+    nets += [Net(coreless_source, coreless_sink)]
+    
+    ## Nearest-neighbour connectivity
+    #nets += [Net(i(x, y),
+    #             [xy for xy in [i(x+1,y+1), # Top
+    #                            i(x+0,y+1),
+    #                            #i(x-1,y+1), # Left
+    #                            i(x-1,y+0),
+    #                            i(x-1,y-1), # Bottom
+    #                            i(x+0,y-1),
+    #                            #i(x+1,y-1), # Right
+    #                            i(x+1,y+0),
+    #                            i(x+0,y+0),  # Self-loop
+    #                            ]
+    #              if xy is not None], weight=0.3 + random.random()*0.7)
+    #         for x in range(w)
+    #         for y in range(h)]
     
     # Self-loop connectivity
     #nets += [Net(v, v) for v in vertices]
@@ -1104,7 +1166,9 @@ if __name__=="__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG)
     
-    constraints = [ReserveResourceConstraint(Cores, slice(2, 18))]
+
+    import rig
+    #constraints += [ReserveResourceConstraint(Cores, slice(2, 18))]
     #placements = rig.place_and_route.place(vertices_resources, nets,
     #                                       machine, constraints, effort=1)
     placements = {v: xy for xy, v in iteritems(ideal_placement)}
@@ -1115,23 +1179,24 @@ if __name__=="__main__":
                                        machine, constraints,
                                        placements, allocations, radius=0)
     
-    import pickle
-    with open("/tmp/placement.pickle", "rb") as f:
-        data = pickle.load(f)
-        
-        machine = data["machine"]
-        vertices_resources = data["vertices_resources"]
-        nets = data["nets"]
-        constraints = data["constraints"]
-        placements = data["placements"]
-        allocations = data["allocations"]
-        routes = data["routes"]
+    #import pickle
+    #with open("/tmp/placement.pickle", "rb") as f:
+    #    data = pickle.load(f)
+    #    
+    #    machine = data["machine"]
+    #    vertices_resources = data["vertices_resources"]
+    #    nets = data["nets"]
+    #    constraints = data["constraints"]
+    #    placements = data["placements"]
+    #    allocations = data["allocations"]
+    #    routes = data["routes"]
     
     core_style = default_core_style.copy()
     for constraint in constraints:
         core_style.set(constraint, "fill", (0.2, 0.2, 0.2, 0.5))
         core_style.set(constraint, "stroke", None)
     
+    routes={}
     d = Diagram(machine=machine,
                 vertices_resources=vertices_resources,
                 nets=nets,

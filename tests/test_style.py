@@ -261,3 +261,7 @@ def test_polygon_style():
         assert s.get("fill") is None
         assert p.get("fill") is None
     ctx.reset_mock()
+    
+    # Should fail if given too many arguments
+    with pytest.raises(ValueError):
+        p(ctx, None, 123)
