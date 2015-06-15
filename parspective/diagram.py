@@ -1,7 +1,5 @@
 """Cairo-based diagram generation of placement/routing information."""
 
-import random
-
 import cairocffi as cairo
 
 from collections import defaultdict
@@ -45,7 +43,14 @@ default_net_style = Style(stroke=(1.0, 0.0, 0.0, 0.5))
 
 
 class Diagram(object):
-    """A SpiNNaker machine placement diagram."""
+    """A SpiNNaker machine placement diagram.
+    
+    Sample usage::
+    
+        # Draw a diagram to a Cairo context.
+        d = Diagram(...)
+        d.draw(ctx, 1000, 1000)
+    """
     
     def __init__(
             self,
@@ -1036,179 +1041,3 @@ class Diagram(object):
             for (x, y), vertices_on_chip in iteritems(self._core_map):
                 for core_num in vertices_on_chip:
                     self._draw_core(ctx, x, y, core_num)
-
-
-if __name__=="__main__":
-    width = 4000//3
-    height = 3200//3
-    
-    from rig.machine import Machine
-    
-    w, h = 96, 60
-    w, h = 48, 24
-    w, h = 12, 12
-    w, h = 3, 3
-    
-    machine = Machine(w, h, chip_resources={Cores: 18})
-    ## SpiNN-5
-    #nominal_live_chips = set([  # noqa
-    #                                    (4, 7), (5, 7), (6, 7), (7, 7),
-    #                            (3, 6), (4, 6), (5, 6), (6, 6), (7, 6),
-    #                    (2, 5), (3, 5), (4, 5), (5, 5), (6, 5), (7, 5),
-    #            (1, 4), (2, 4), (3, 4), (4, 4), (5, 4), (6, 4), (7, 4),
-    #    (0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3),
-    #    (0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2),
-    #    (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1),
-    #    (0, 0), (1, 0), (2, 0), (3, 0), (4, 0),
-    #])
-    #machine.dead_chips = set((x, y)
-    #                         for x in range(8)
-    #                         for y in range(8)) - nominal_live_chips
-    
-    
-    from collections import OrderedDict
-    ideal_placement = OrderedDict(((x, y), object())
-                                  for x in range(w)
-                                  for y in range(h))
-    vertices = list(itervalues(ideal_placement))
-    vertices_resources = {v: {Cores: 1} for v in vertices}
-    
-    def i(x, y):
-        #if x >= w or x < 0 or y >= h or y < 0:
-        #    return None
-        #else:
-        return ideal_placement[(x%w, y%h)]
-    nets = []
-    constraints = []
-    
-    # Route-to-link constraint: core to link
-    rtl_vertex = ideal_placement[(1, 0)]
-    vertices_resources[rtl_vertex] = {}
-    from rig.place_and_route.constraints import LocationConstraint, RouteEndpointConstraint
-    from rig.routing_table import Routes
-    constraints.append(LocationConstraint(rtl_vertex, (1, 0)))
-    constraints.append(RouteEndpointConstraint(rtl_vertex, Routes.north_east))
-    nets += [Net(i(0, 0), rtl_vertex)]
-    
-    # Coreless vertex source
-    coreless_vertex = ideal_placement[(0, 1)]
-    vertices_resources[coreless_vertex] = {}
-    nets += [Net(coreless_vertex, i(1, 1))]
-    
-    # Coreless vertex source and sink
-    coreless_source = ideal_placement[(0, 2)]
-    coreless_sink = ideal_placement[(1, 2)]
-    vertices_resources[coreless_source] = {}
-    vertices_resources[coreless_sink] = {}
-    nets += [Net(coreless_source, coreless_sink)]
-    
-    ## Nearest-neighbour connectivity
-    #nets += [Net(i(x, y),
-    #             [xy for xy in [i(x+1,y+1), # Top
-    #                            i(x+0,y+1),
-    #                            #i(x-1,y+1), # Left
-    #                            i(x-1,y+0),
-    #                            i(x-1,y-1), # Bottom
-    #                            i(x+0,y-1),
-    #                            #i(x+1,y-1), # Right
-    #                            i(x+1,y+0),
-    #                            i(x+0,y+0),  # Self-loop
-    #                            ]
-    #              if xy is not None], weight=0.3 + random.random()*0.7)
-    #         for x in range(w)
-    #         for y in range(h)]
-    
-    # Self-loop connectivity
-    #nets += [Net(v, v) for v in vertices]
-    
-    ## Random connectivity
-    #fan_out = 1, 4
-    #net_prob = 0.5
-    #nets += [Net(v, random.sample(vertices, random.randint(*fan_out)),
-    #             0.5 + random.random()*0.5)
-    #         for v in vertices
-    #         if random.random() < net_prob]
-    
-    # Thick pipeline connectivity
-    #n_vertices = len(vertices)
-    #thickness = 12
-    #nets += [Net(vertices[i],
-    #             vertices[(i//thickness + 1)*thickness: (i//thickness + 2)*thickness])
-    #         for i in range(n_vertices)
-    #         if i + thickness < n_vertices]
-    
-    ## Nengo-style pipeline of ensemble arrays
-    #n_vertices = len(vertices)
-    #thickness = 10
-    #vertex_iter = iter(vertices)
-    #last_node = None
-    #try:
-    #    while True:
-    #        node = next(vertex_iter)
-    #        if last_node is not None:
-    #            nets.append(Net(last_node, node))
-    #        
-    #        ensemble_array = []
-    #        try:
-    #            for _ in range(thickness):
-    #                ensemble_array.append(next(vertex_iter))
-    #        except StopIteration:
-    #            pass
-    #        nets.append(Net(node, ensemble_array))
-    #        
-    #        last_node = next(vertex_iter)
-    #        for v in ensemble_array:
-    #            nets.append(Net(v, last_node))
-    #except StopIteration:
-    #    pass
-    
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    
-
-    import rig
-    #constraints += [ReserveResourceConstraint(Cores, slice(2, 18))]
-    #placements = rig.place_and_route.place(vertices_resources, nets,
-    #                                       machine, constraints, effort=1)
-    placements = {v: xy for xy, v in iteritems(ideal_placement)}
-    allocations = rig.place_and_route.allocate(vertices_resources, nets,
-                                               machine, constraints,
-                                               placements)
-    routes = rig.place_and_route.route(vertices_resources, nets,
-                                       machine, constraints,
-                                       placements, allocations, radius=0)
-    
-    #import pickle
-    #with open("/tmp/placement.pickle", "rb") as f:
-    #    data = pickle.load(f)
-    #    
-    #    machine = data["machine"]
-    #    vertices_resources = data["vertices_resources"]
-    #    nets = data["nets"]
-    #    constraints = data["constraints"]
-    #    placements = data["placements"]
-    #    allocations = data["allocations"]
-    #    routes = data["routes"]
-    
-    core_style = default_core_style.copy()
-    for constraint in constraints:
-        core_style.set(constraint, "fill", (0.2, 0.2, 0.2, 0.5))
-        core_style.set(constraint, "stroke", None)
-    
-    routes={}
-    d = Diagram(machine=machine,
-                vertices_resources=vertices_resources,
-                nets=nets,
-                constraints=constraints,
-                placements=placements,
-                allocations=allocations,
-                routes=routes,
-                core_resource=Cores,
-                core_style=core_style)
-    
-    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,
-                                 width,
-                                 height)
-    ctx = cairo.Context(surface)
-    d.draw(ctx, width, height)
-    surface.write_to_png("/tmp/out.png")
