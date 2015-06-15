@@ -11,15 +11,15 @@ Gallery
 
 A fully placed and routed netlist:
 
-![Fully placed and routed](examples/fully_routed.png)
+![Fully placed and routed](./example_images/fully_routed.png)
 
 A smaller fully placed and routed netlist showing wrap-around links:
 
-![Example with wrap-around](examples/small_routed.png)
+![Example with wrap-around](./example_images/small_routed.png)
 
 Another smaller example but this time with routes replaced with a ratsnest:
 
-![Example with ratsnest](examples/ratsnest.png)
+![Example with ratsnest](./example_images/ratsnest.png)
 
 Commandline Utility
 -------------------
