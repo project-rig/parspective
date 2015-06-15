@@ -11,11 +11,20 @@ import pytest
 
 import random
 
+import os
+
+from distutils.dir_util import mkpath
+
 from six import iteritems
 
 import cairocffi as cairo
 
-from parspective.diagram import Diagram
+from parspective.diagram import \
+    Diagram, \
+    default_chip_style, \
+    default_link_style, \
+    default_core_style, \
+    default_net_style
 
 from parspective.style import Style
 
@@ -34,23 +43,76 @@ from rig.place_and_route.constraints import \
 
 
 @pytest.fixture
+def filename(request):
+    path, _, test = request.node.nodeid.partition("::")
+    dirname, filename = os.path.split(path)
+    
+    out_dir = os.path.join(dirname, "test_images", filename)
+    out_name = "".join(
+        c if c in "abcdefghijklmnopqrstuvwxyz0123456789"
+                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ_+-"
+        else "_"
+        for c in test)
+    out_name += ".png"
+    
+    mkpath(out_dir)
+    return os.path.join(out_dir, out_name)
+
+@pytest.fixture
 def width():
-    return 10
+    return 400
 
 @pytest.fixture
 def height():
-    return 10
+    return 300
+
+@pytest.fixture
+def ctx(width, height):
+    """A Cairo context to render into whose output is just ignored."""
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 3, 6)
+    return cairo.Context(surface)
 
 
 @pytest.yield_fixture
-def ctx(width, height):
-    """A tiny cairo context to render into."""
+def checked_ctx(width, height, filename):
+    """Like ctx but after the test the image will be diffed against a reference
+    image."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,
                                  width,
                                  height)
     ctx = cairo.Context(surface)
+    
+    # The image should be drawn with a white background since diffing becomes
+    # difficult otherwise.
+    with ctx:
+        ctx.rectangle(0, 0, width, height)
+        ctx.set_source_rgba(1.0, 1.0, 1.0, 1.0)
+        ctx.fill()
+    
     yield ctx
-    surface.write_to_png("/dev/null")
+    
+    surface.flush()
+    surface.write_to_png(filename + ".last.png")
+    
+    # Get the difference with the reference image
+    try:
+        ref_surface = cairo.ImageSurface.create_from_png(filename)
+        ctx.set_operator(cairo.OPERATOR_DIFFERENCE)
+        ctx.set_source_surface(ref_surface)
+        ctx.rectangle(0, 0, width, height)
+        ctx.fill()
+    except FileNotFoundError:
+        # No reference image available, the diff is thus equal to the image
+        pass
+    
+    surface.flush()
+    surface.write_to_png(filename + ".diff.png")
+    
+    # Diff only the non-alpha channels
+    different = any(p != b"\0" and n % 4 != 3
+                    for n, p in enumerate(surface.get_data()))
+    
+    assert not different, "Doesn't match reference image {}".format(filename)
 
 
 def test_init_core_map():
@@ -197,18 +259,29 @@ def test_allocate_nets_to_links():
 
 class TestDoesntCrash():
     """These tests simply check that various simples sets of input arguments
-    don't cause a crash."""
+    don't cause a crash and for some of them checks the output against a known
+    correct rendering."""
     
-    def test_no_vertices(self, ctx, width, height):
-        # The diagram generator shouldn't fail when given no vertices
+    def test_no_vertices(self, checked_ctx, width, height):
+        # A full machine with wrap-around links and cores on every chip should
+        # be drawn.
         machine = Machine(2, 2)
-        Diagram(machine=machine).draw(ctx, width, height)
-        
+        Diagram(machine=machine).draw(checked_ctx, width, height)
     
-    def test_no_nets(self, ctx, width, height):
-        # Shouldn't crash when the diagram has no nets
-        core_resource = object()
+    def test_broken_machine(self, checked_ctx, width, height):
+        # Each of the breakages below should be recorded
+        machine = Machine(2, 2)
+        machine.dead_chips.add((1, 1))
+        machine.dead_links.add((0, 1, Links.north))
         
+        machine.chip_resource_exceptions[(0, 0)] = {Cores:1}
+        machine.chip_resource_exceptions[(1, 0)] = {Cores:7}
+        machine.chip_resource_exceptions[(0, 1)] = {Cores:10}
+        
+        Diagram(machine=machine).draw(checked_ctx, width, height)
+    
+    def test_no_nets(self, checked_ctx, width, height):
+        # Should draw a diagram with two vertices allocated on 0, 0
         machine = Machine(2, 2)
         vertex = object()
         vertices_resources = {vertex: {Cores: 2}}
@@ -219,34 +292,87 @@ class TestDoesntCrash():
         Diagram(machine=machine,
                 vertices_resources=vertices_resources,
                 placements=placements,
-                allocations=allocations).draw(ctx, width, height)
+                allocations=allocations).draw(checked_ctx, width, height)
     
-    def test_zero_weight_nets(self, ctx, width, height):
-        # Shouldn't crash when the diagram has a net which has zero weight
-        core_resource = object()
+    @pytest.mark.parametrize("ratsnest", [True, False])
+    def test_custom_styles(self, checked_ctx, width, height, ratsnest):
+        # Check that style exceptions work
+        machine = Machine(3, 3)
+        vertex0 = object()
+        vertex1 = object()
+        vertices_resources = {vertex0: {Cores: 1}, vertex1: {Cores: 1}}
+        nets = [Net(vertex0, vertex0),
+                Net(vertex1, vertex1),
+                Net(vertex0, vertex1),
+                Net(vertex1, vertex0)]
         
-        machine = Machine(2, 2)
-        vertex = object()
-        vertices_resources = {vertex: {Cores: 2}}
-        nets = [Net(vertex, vertex, weight=0.0)]
+        placements = {vertex0: (0, 0), vertex1: (1, 1)}
+        allocations = {vertex0: {Cores: slice(0, 1)},
+                       vertex1: {Cores: slice(0, 1)}}
+        if ratsnest:
+            routes = {}
+        else:
+            routes = rig.place_and_route.route(
+                vertices_resources, nets, machine, [],
+                placements, allocations)
         
-        placements = {vertex: (0, 0)}
-        allocations = {vertex: {Cores: slice(0, 2)}}
-        routes = rig.place_and_route.route(
-            vertices_resources, nets, machine, [],
-            placements, allocations)
+        chip_style = default_chip_style.copy()
+        link_style = default_link_style.copy()
+        core_style = default_core_style.copy()
+        net_style = default_net_style.copy()
+        
+        chip_style.set((2, 2), "stroke", (1.0, 0.0, 0.0, 1.0))
+        
+        for link in [(2, 2, Links.north), (2, 0, Links.south)]:
+            link_style.set(link, "stroke", (1.0, 0.0, 0.0, 1.0))
+            link_style.set(link, "fill", (0.0, 1.0, 0.0, 1.0))
+        
+        core_style.set(vertex0, "fill", (1.0, 0.0, 1.0, 1.0))
+        
+        net_style.set(nets[0], "stroke", (0.0, 1.0, 1.0, 1.0))
+        net_style.set(nets[2], "stroke", (0.0, 1.0, 1.0, 1.0))
         
         Diagram(machine=machine,
                 vertices_resources=vertices_resources,
                 nets=nets,
                 placements=placements,
                 allocations=allocations,
-                routes=routes).draw(ctx, width, height)
+                chip_style=chip_style,
+                link_style=link_style,
+                core_style=core_style,
+                net_style=net_style,
+                routes=routes).draw(checked_ctx, width, height)
     
-    def test_null_nets(self, ctx, width, height):
-        # Shouldn't crash when the diagram has a net going to nowhere
-        core_resource = object()
+    @pytest.mark.parametrize("ratsnest", [True, False])
+    def test_zero_weight_nets(self, checked_ctx, width, height, ratsnest):
+        # Should draw the nets but faintly. Both for self-loops and direct hops.
+        machine = Machine(3, 3)
+        vertex0 = object()
+        vertex1 = object()
+        vertices_resources = {vertex0: {Cores: 1}, vertex1: {Cores: 1}}
+        nets = [Net(vertex0, vertex0, weight=0.0),
+                Net(vertex0, vertex1, weight=0.0)]
         
+        placements = {vertex0: (0, 0), vertex1: (1, 1)}
+        allocations = {vertex0: {Cores: slice(0, 1)},
+                       vertex1: {Cores: slice(0, 1)}}
+        if ratsnest:
+            routes = {}
+        else:
+            routes = rig.place_and_route.route(
+                vertices_resources, nets, machine, [],
+                placements, allocations)
+        
+        Diagram(machine=machine,
+                vertices_resources=vertices_resources,
+                nets=nets,
+                placements=placements,
+                allocations=allocations,
+                routes=routes).draw(checked_ctx, width, height)
+    
+    @pytest.mark.parametrize("ratsnest", [True, False])
+    def test_null_nets(self, checked_ctx, width, height, ratsnest):
+        # Nets which don't have any sinks should not be drawn.
         machine = Machine(2, 2)
         vertex = object()
         vertices_resources = {vertex: {Cores: 2}}
@@ -254,30 +380,29 @@ class TestDoesntCrash():
         
         placements = {vertex: (0, 0)}
         allocations = {vertex: {Cores: slice(0, 2)}}
-        routes = rig.place_and_route.route(
-            vertices_resources, nets, machine, [],
-            placements, allocations)
+        if ratsnest:
+            routes = {}
+        else:
+            routes = rig.place_and_route.route(
+                vertices_resources, nets, machine, [],
+                placements, allocations)
         
         Diagram(machine=machine,
                 vertices_resources=vertices_resources,
                 nets=nets,
                 placements=placements,
                 allocations=allocations,
-                routes=routes).draw(ctx, width, height)
+                routes=routes).draw(checked_ctx, width, height)
     
     @pytest.mark.parametrize("ratsnest", [True, False])
-    def test_non_core_endpoints_nets(self, ctx, width, height, ratsnest):
-        # Shouldn't crash when nets have vertices with no cores allocated at
-        # either or both ends of the net.
-        core_resource = object()
-        
+    def test_non_core_endpoints_nets(self, checked_ctx, width, height, ratsnest):
+        # Should be able to draw nets between vertices with and without cores.
         machine = Machine(3, 3)
         core_vertex = object()
         no_core_vertex = object()
         vertices_resources = {core_vertex: {Cores: 1}, no_core_vertex: {}}
         nets = [Net(core_vertex, no_core_vertex),
-                Net(no_core_vertex, core_vertex),
-                Net(no_core_vertex, no_core_vertex)]
+                Net(no_core_vertex, core_vertex)]
         
         placements = {core_vertex: (0, 0), no_core_vertex: (1, 1)}
         allocations = {core_vertex: {Cores: slice(0, 1)}, no_core_vertex: {}}
@@ -294,13 +419,10 @@ class TestDoesntCrash():
                 nets=nets,
                 placements=placements,
                 allocations=allocations,
-                routes=routes).draw(ctx, width, height)
-        print("eh?")
+                routes=routes).draw(checked_ctx, width, height)
     
-    def test_single_board(self, ctx, width, height):
-        # Shouldn't crash when the machine has missing cores and links.
-        core_resource = object()
-        
+    def test_single_board(self, checked_ctx, width, height):
+        # Should be able to render a 48 node board.
         machine = Machine(8, 8)
         nominal_live_chips = set([  # noqa
                                             (4, 7), (5, 7), (6, 7), (7, 7),
@@ -315,7 +437,7 @@ class TestDoesntCrash():
         machine.dead_chips = set((x, y)
                                  for x in range(8)
                                  for y in range(8)) - nominal_live_chips
-        Diagram(machine=machine).draw(ctx, width, height)
+        Diagram(machine=machine).draw(checked_ctx, width, height)
     
     @pytest.mark.parametrize("w,h", [(3, 3), (3, 6), (6, 3)])
     @pytest.mark.parametrize("wrap_around", [True, False])
