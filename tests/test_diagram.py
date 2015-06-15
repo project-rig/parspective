@@ -101,7 +101,7 @@ def checked_ctx(width, height, filename):
         ctx.set_source_surface(ref_surface)
         ctx.rectangle(0, 0, width, height)
         ctx.fill()
-    except FileNotFoundError:
+    except FileNotFoundError:  # pragma: no cover
         # No reference image available, the diff is thus equal to the image
         pass
     
