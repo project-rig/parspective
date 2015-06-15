@@ -14,4 +14,11 @@ setup(
 
     # Requirements
     install_requires=["rig >=0.5.0", "six", "enum34", "cairocffi"],
+    
+    # Scripts
+    entry_points={
+        "console_scripts": [
+            "parspective = parspective.cli:main",
+        ],
+    },
 )

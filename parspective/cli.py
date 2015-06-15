@@ -220,7 +220,7 @@ def route(vertices_resources, nets, machine, constraints,
     return routes
 
 
-def main(argv):
+def main(argv=sys.argv):
     parser = argparse.ArgumentParser(
         description="Generate a placement and routing diagram for a "
                     "Rig netlist.")
