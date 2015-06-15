@@ -1,14 +1,94 @@
-"""Basic drawing style definition containers."""
+"""Style definitions data structures.
+
+Various elements of P&Rspective's output can have their appearence customised,
+for examlpe changing colours or line styles. It is also useful to be able to
+make exceptions to these styles, for example, to highlight a certain net or
+colour code cores in the diagram. The Style object helps facilitate this
+functionality.
+"""
 
 from six import iteritems
 
 class Style(object):
-    """Base type for definitions of visual style."""
+    """Defines the style of a polygon to be drawn.
     
-    """The set of style options which can be controlled."""
-    FIELDS = []
+    Thie Style object defines a set of Cairo drawing parameters (see
+    :py:meth:`.FIELDS`) for the drawing of certain elements in P&Rspective
+    diagrams. For example, :py:class:`.Style`s are used to define how chips,
+    links cores and nets are drawn. Exceptions can be added to the style to
+    allow individual instances to have their style options altered.
+    
+    Style options can be set using the constructor or via the :py:meth:`.set`
+    method like so::
+    
+        >>> # Define a style with a red 50% transparent fill and black stroke
+        >>> # 0.1 units wide.
+        >>> s = Style(fill=(1.0, 0.0, 0.0, 0.5))
+        >>> s.set("stroke", (0.0, 0.0, 0.0, 1.0)
+        >>> s.set("line_width", 0.1)
+    
+    The value of these style options can be read back using the ;py:class:`.get`
+    method::
+    
+        >>> s.get("fill")
+        (1.0, 0.0, 0.0, 1.0)
+    
+    Exceptions can also be defined. For example when defining the drawing style
+    of a chip, exceptions are made on a chip by chip basis. Here we can cause
+    chip (2, 4) to be drawn with a thicker outline::
+    
+        >>> s.set((2, 4), "line_width", 0.3)
+    
+    When fetching styles, possible exceptions are provided to the
+    :py:class:`.get` method and if a matching exception exists its value is
+    returned, otherwise the default value is produced. For example:
+    
+        >>> s.get((2, 4), "line_width")
+        0.3
+        >>> s.get((2, 4), "stroke")
+        (0.0, 0.0, 0.0, 1.0)
+        >>> s.get((0, 0), "line_width")
+        0.1
+    
+    The :py:class:`.Style` object also acts as a context manager which on entry
+    will push the current Cairo state onto the stack and on exit stroke and fill
+    any paths according to the Style's definition. For example::
+    
+        # Draws a triangle with whatever style and colour of fill and stroke the
+        # Style defines.
+        >>> with s(ctx):
+        ...     ctx.move_to(1.0, 1.0)
+        ...     ctx.line_to(2.0, 2.0)
+        ...     ctx.line_to(2.0, 1.0)
+        ...     ctx.close_path()
+    
+    See the :py:class:`.__call__` special method for more details.
+    """
+    
+    """The set of style options which can be controlled.
+    
+    * ``fill``: None or (r, g, b, a). If not None, defines the colour fill which
+      should be applied.
+    * ``stroke``: None or (r, g, b, a). If not None, defines the colour of the
+      stroke to draw around the polygon. Should be used in combination with
+      ``line_width``. The stroke will be applied after the fill.
+    * ``line_width`` (None or float). The width of the stroke to use (or no
+      stroke if 0).
+    * ``dash`` (None or list). If not None, specifies the dash pattern to use.
+    * ``line_cap`` (None or cairo.LINE_CAP_*). If not None, the style of line
+      cap to use when stroking lines.
+    * ``line_join`` (None or cairo.LINE_JOIN_*). If not None, the style of line
+      join to use when stroking lines.
+    """
+    FIELDS = ["fill", "stroke", "line_width", "dash", "line_cap", "line_join"]
     
     def __init__(self, *args, **kwargs):
+        """Define a new style.
+        
+        Initial default values can be set by positional arguments in the same
+        order as :py:meth:`.FIELDS` or via named keyword arguments. Unless
+        given, all fields will default to None.
+        """
         # A lookup from field to default value
         self._defaults = {f: None for f in self.FIELDS}
         
@@ -35,18 +115,21 @@ class Style(object):
                 self._defaults[field] = value
     
     def copy(self):
+        """Create a copy of this style."""
         s = type(self)()
         s._defaults = self._defaults.copy()
         s._exceptions = {e: v.copy() for e, v in iteritems(self._exceptions)}
         return s
     
     def set(self, *args):
-        """Set the value of a particular field.
+        """Set the value of a particular style parameter.
         
-        Usage::
+        Usage examples::
         
-            s.set("field", value)
-            s.set(exception, "field", value)
+            >>> # Set the default line_width to 0.1
+            >>> s.set("line_width", 0.1)
+            >>> # Set an exception for the line_width of (3, 2)
+            >>> s.set((3, 2), "line_width", 0.3)
         """
         if len(args) == 2:
             field, value = args
@@ -58,11 +141,14 @@ class Style(object):
             raise ValueError("set expects 3 or 4 arguments")
     
     def get(self, *args):
-        """Get the value of a particular field.
+        """Get the value of a particular style parameter.
         
         Usage::
-            v = s.get("field")
-            v = s.get(exception, "field")
+            >>> # Get the default line_width
+            >>> line_width = s.get("line_width")
+            >>> # Get the line width for (3, 2), returning the default value if
+            >>> # no exception to the style exists.
+            >>> line_width = s.get((3, 2), "line_width")
         """
         if len(args) == 1:
             return self._defaults[args[0]]
@@ -72,22 +158,51 @@ class Style(object):
                 field, self._defaults[field])
         else:
             raise ValueError("get expects 2 or 3 arguments")
-
-
-class PolygonStyle(Style):
-    """Defines the style of a polygon.
-    
-    When called with a cairo context and optionally an exception, produces a
-    context manager which saves the cairo context and on exit, strokes and fills
-    the polygon using the style defined.
-    """
-    
-    FIELDS = ["fill", "stroke", "line_width", "dash", "line_cap", "line_join"]
     
     def __call__(self, ctx, *exception, no_fill_stroke=False):
-        """Create a context manager which will render the current path using the
-        specified style. If no_fill_stroke is set to True, the context manager
-        will not fill/stroke the underlying shape but will set the other styles.
+        """Create a context manager object which applies this Style to any Cairo
+        paths drawn within the context.
+        
+        A basic example which draws a triangle using the style specified by
+        ``s``::
+        
+            >>> with s(ctx):
+            ...     ctx.move_to(1.0, 1.0)
+            ...     ctx.line_to(2.0, 2.0)
+            ...     ctx.line_to(2.0, 1.0)
+            ...     ctx.close_path()
+        
+        In this example, the triangle is drawn with the style exception
+        (3, 2). Additionally, a new object ``s_`` is defined which has a get
+        function which behaves like a :py:class:`.Style`'s getter except it
+        gets the style for the supplied style exception.
+        
+            >>> with s(ctx, (3, 2)) as s_:
+            ...     ctx.move_to(1.0, 1.0)
+            ...     ctx.line_to(2.0 + s_.get("line_width"),
+            ...                 2.0 + s_.get("line_width"))
+            ...     ctx.line_to(2.0 + s_.get("line_width"), 1.0)
+            ...     ctx.close_path()
+        
+        Note: if the code within the block raises an exception, the Cairo state
+        will be restored but the path will not be filled/stroked.
+        
+        Parameters
+        ----------
+        ctx : Cairo context
+            A cairo context into which all paths will be drawn. At the start of
+            the context the Cairo state is saved. At the end of the context it
+            is restored.
+        exception : object
+            An optional object which specifies what styling exception should be
+            used. If not specified, the default is used.
+        no_fill_stroke : bool
+            By default when the context is exited, the current Cairo path is
+            filled and stroked as specified. If this named argument is given as
+            True, the Cairo path is not stroked. This is useful when the
+            fill/stroke operations required are non-trivial (e.g. when gradients
+            are in use) but where having a getter with a particular exception
+            predefined is convenient.
         """
         if len(exception) > 1:
             raise ValueError("expected 2 or 3 arguments")

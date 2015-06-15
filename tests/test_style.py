@@ -2,7 +2,7 @@ import pytest
 
 from mock import Mock, call
 
-from parspective.style import Style, PolygonStyle
+from parspective.style import Style
 
 import cairocffi as cairo
 
@@ -127,8 +127,8 @@ def test_style_copy():
     assert s2.get(123, "foo") == "123's new foo style"
 
 
-def test_polygon_style():
-    p = PolygonStyle()
+def test_cairo_polygon_styling():
+    p = Style()
     
     ctx = Mock()
     

@@ -22,26 +22,26 @@ from rig.place_and_route.routing_tree import RoutingTree
 
 from parspective.geometry import get_core_ring_position
 
-from parspective.style import PolygonStyle
+from parspective.style import Style
 
 
-default_chip_style = PolygonStyle(fill=(1.0, 1.0, 1.0, 1.0),
-                                  stroke=(0.0, 0.0, 0.0, 1.0),
-                                  line_width=0.03)
+default_chip_style = Style(fill=(1.0, 1.0, 1.0, 1.0),
+                           stroke=(0.0, 0.0, 0.0, 1.0),
+                           line_width=0.03)
 
-default_link_style = PolygonStyle(fill=(0.5, 0.5, 0.5, 0.2),
-                                  stroke=(0.5, 0.5, 0.5, 0.25),
-                                  line_width=0.025)
+default_link_style = Style(fill=(0.5, 0.5, 0.5, 0.2),
+                           stroke=(0.5, 0.5, 0.5, 0.25),
+                           line_width=0.025)
 
-default_core_style = PolygonStyle(fill=(0.0, 0.0, 1.0, 1.0),
-                                  stroke=(0.0, 0.0, 0.0, 0.0),
-                                  line_width=0.005)
+default_core_style = Style(fill=(0.0, 0.0, 1.0, 1.0),
+                           stroke=(0.0, 0.0, 0.0, 0.0),
+                           line_width=0.005)
 
 # Style non-allocated cores differently by default
 default_core_style.set(None, "fill", (1.0, 1.0, 1.0, 0.5))
 default_core_style.set(None, "stroke", (0.0, 0.0, 1.0, 1.0))
 
-default_net_style = PolygonStyle(stroke=(1.0, 0.0, 0.0, 0.5))
+default_net_style = Style(stroke=(1.0, 0.0, 0.0, 0.5))
 
 
 class Diagram(object):
@@ -116,7 +116,7 @@ class Diagram(object):
             
             Any vertices which don't have this resource allocated to them will not
             be drawn.
-        chip_style : :py:class:`parspective.style.PolygonStyle`
+        chip_style : :py:class:`parspective.style.Style`
             The style with which chips are drawn. Each chip is represented as a
             hexagon which will be styled with the supplied style. Style exceptions
             for (x, y) coordinates can be used to individually control the
@@ -124,14 +124,14 @@ class Diagram(object):
         chip_spacing : float
             The amount of space between neighbouring chips. Note that this space is
             where the chip-to-chip links are drawn and so should be set > 0.
-        link_style : :py:class:`parspective.style.PolygonStyle`
+        link_style : :py:class:`parspective.style.Style`
             The style with which chip-to-chip links are drawn. Links are drawn as a
             solid rectangle connecting the corresponding edges of a hexagonal chip.
             Dead links are not drawn. Style exceptions may be listed for (x, y,
             link) tuples to style individual links differently. Note that
             both ends of a link must be given the same style exception otherwise
             the behaviour is undefined.
-        core_style : :py:class:`parspective.style.PolygonStyle`
+        core_style : :py:class:`parspective.style.Style`
             The style with which cores are drawn. Each core is represented as a
             circle inside its associated chip, styled with the supplied style. The
             following style exceptions are supported to control the styling of
@@ -143,7 +143,7 @@ class Diagram(object):
               :py:class:`rig.place_and_route.constraints.ReserveResourceConstraint`.
         core_spacing : float
             The amount of space between the cores drawn inside each chip.
-        net_style : :py:class:`parspective.style.PolygonStyle`
+        net_style : :py:class:`parspective.style.Style`
             The style which is used to draw the paths of routed nets and ratsnests.
             Note that if line_width is not specified, the line-width will be set
             based on the net's weight (recommended). Style exceptions can be given
@@ -1036,7 +1036,6 @@ class Diagram(object):
             for (x, y), vertices_on_chip in iteritems(self._core_map):
                 for core_num in vertices_on_chip:
                     self._draw_core(ctx, x, y, core_num)
-        
 
 
 if __name__=="__main__":

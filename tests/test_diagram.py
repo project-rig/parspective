@@ -17,7 +17,7 @@ import cairocffi as cairo
 
 from parspective.diagram import Diagram
 
-from parspective.style import PolygonStyle
+from parspective.style import Style
 
 import rig
 
@@ -326,13 +326,13 @@ class TestDoesntCrash():
             # Override the net weight
             {"net_weight_scale": 0.1},
             # Hide links
-            {"link_style": PolygonStyle()},
+            {"link_style": Style()},
             # Hide chips
-            {"chip_style": PolygonStyle()},
+            {"chip_style": Style()},
             # Hide cores
-            {"core_style": PolygonStyle()},
+            {"core_style": Style()},
             # Hide nets
-            {"net_style": PolygonStyle()},
+            {"net_style": Style()},
         ])
     def test_network(self, ctx, width, height, w, h, wrap_around, ratsnest,
                      kwargs):
