@@ -24,22 +24,22 @@ from parspective.style import Style
 
 
 default_chip_style = Style(fill=(1.0, 1.0, 1.0, 1.0),
-                           stroke=(0.0, 0.0, 0.0, 1.0),
+                           stroke=(0.3, 0.3, 0.3, 1.0),
                            line_width=0.03)
 
 default_link_style = Style(fill=(0.5, 0.5, 0.5, 0.2),
                            stroke=(0.5, 0.5, 0.5, 0.25),
                            line_width=0.025)
 
-default_core_style = Style(fill=(0.0, 0.0, 1.0, 1.0),
+default_core_style = Style(fill=(0.0, 0.0, 0.0, 1.0),
                            stroke=(0.0, 0.0, 0.0, 0.0),
                            line_width=0.005)
 
 # Style non-allocated cores differently by default
 default_core_style.set(None, "fill", (1.0, 1.0, 1.0, 0.5))
-default_core_style.set(None, "stroke", (0.0, 0.0, 1.0, 1.0))
+default_core_style.set(None, "stroke", (0.0, 0.0, 0.0, 1.0))
 
-default_net_style = Style(stroke=(1.0, 0.0, 0.0, 0.5))
+default_net_style = Style(stroke=(0.0, 0.0, 0.0, 0.5))
 
 
 class Diagram(object):

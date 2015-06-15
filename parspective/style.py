@@ -161,7 +161,6 @@ class Style(object):
     
     def __contains__(self, exception):
         """Test whether the style has any exceptions for a given object."""
-        print(exception, self._exceptions)
         return exception in self._exceptions
     
     def __call__(self, ctx, *exception, no_fill_stroke=False):
