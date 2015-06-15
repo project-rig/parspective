@@ -159,6 +159,11 @@ class Style(object):
         else:
             raise ValueError("get expects 2 or 3 arguments")
     
+    def __contains__(self, exception):
+        """Test whether the style has any exceptions for a given object."""
+        print(exception, self._exceptions)
+        return exception in self._exceptions
+    
     def __call__(self, ctx, *exception, no_fill_stroke=False):
         """Create a context manager object which applies this Style to any Cairo
         paths drawn within the context.

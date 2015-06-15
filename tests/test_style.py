@@ -51,6 +51,10 @@ def test_style_init():
 def test_style_get_set_exceptions():
     s = MyStyle("foo style", "bar style")
     
+    # Initially shouldn't have any exceptions
+    assert None not in s
+    assert 123 not in s
+    
     # Should be able to change the values
     s.set("foo", "new foo style")
     s.set("bar", "new bar style")
@@ -64,6 +68,9 @@ def test_style_get_set_exceptions():
     assert s.get("foo") == "new foo style"
     assert s.get(None, "foo") == "None's foo style"
     assert s.get(123, "foo") == "123's foo style"
+    
+    assert None in s
+    assert 123in s
     
     # Exceptions need not have all values defined uniquely and those not set
     # should fall through to the default types
