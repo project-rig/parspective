@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="parspective",
-    version="0.0.0",
+    name="rig-par-diagram",
+    version="0.0.1",
     packages=find_packages(),
 
     # Metadata for PyPi
-    url="https://github.com/project-rig/parspective",
+    url="https://github.com/project-rig/rig-par-diagram",
     author="Jonathan Heathcote",
     description="A tool for generating diagrams of SpiNNaker Place & Route solutions",
     license="GPLv2",
@@ -18,7 +18,7 @@ setup(
     # Scripts
     entry_points={
         "console_scripts": [
-            "parspective = parspective.cli:main",
+            "rig-par-diagram = rig_par_diagram.cli:main",
         ],
     },
 )

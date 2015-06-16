@@ -1,5 +1,5 @@
-P&Rspective: SpiNNaker place & route diagram generation tools
-=============================================================
+Rig P&R Diagram: SpiNNaker place & route diagram generation tools
+=================================================================
 
 When working on place and route for SpiNNaker applications it is often useful to
 generate diagrams of the resulting placements. This library aims to produce
@@ -24,14 +24,14 @@ Another smaller example but this time with routes replaced with a ratsnest:
 Commandline Utility
 -------------------
 
-A command-line utility called `parspective` is included with the package which
-can render diagrams of pickled netlists such as those produced by
+A command-line utility called `rig-par-diagram` is included with the package
+which can render diagrams of pickled netlists such as those produced by
 `nengo_spinnaker`'s `nengo_spinnaker.utils.place_and_route.pickle_netlist`
 function. Basic usage looks something like:
 
-    $ parspective netlist.pcl out.png
+    $ rig-par-diagram netlist.pcl out.png
 
-See `parspective --help` for more command line options.
+See `rig-par-diagram --help` for more command line options.
 
 The command-line tool expects a picked Python dictionary which has a subset of
 the following entries:
@@ -43,10 +43,10 @@ the following entries:
 * `"placements"`: A valid set of placements.
 * `"allocations"`: A valid set of allocations.
 * `"routes"`: A valid set of routes.
-* `"chip_style"`: A P&Rspective Style object.
-* `"link_style"`: A P&Rspective Style object.
-* `"core_style"`: A P&Rspective Style object.
-* `"net_style"`: A P&Rspective Style object.
+* `"chip_style"`: A Rig P&R Diagram Style object.
+* `"link_style"`: A Rig P&R Diagram Style object.
+* `"core_style"`: A Rig P&R Diagram Style object.
+* `"net_style"`: A Rig P&R Diagram Style object.
 
 If `vertices_resources` or nets are not supplied, the diagram will simply be a
 picture of the chips, links and cores available in the supplied machine.
@@ -62,6 +62,6 @@ If `constraints` aren't supplied, a constraint will be added which reserves core
 
 If any of the `*_style` options are given, the supplied Style object will be
 used to style the relevant part of the diagram. See the [Diagram
-module][parspective/diagram.py] for further details. Unless the `-C` option is
-used, cores reserved by constraints will automatically be styled in translucent
-grey.
+module](rig_par_diagram/diagram.py) for further details. Unless the `-C` option
+is used, cores reserved by constraints will automatically be styled in
+translucent grey.

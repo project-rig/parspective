@@ -2,13 +2,9 @@ import pytest
 
 from mock import Mock, call
 
-from parspective.style import Style
+from rig_par_diagram.style import Style
 
 import cairocffi as cairo
-
-class MyStyle(Style):
-    FIELDS = ["foo", "bar"]
-
 
 class MyException(Exception):
     pass
@@ -16,83 +12,83 @@ class MyException(Exception):
 
 def test_style_init():
     # Default values should be None
-    s = MyStyle()
-    assert s.get("foo") is None
-    assert s.get("bar") is None
+    s = Style()
+    assert s.get("fill") is None
+    assert s.get("stroke") is None
     
     # Positional initial values should work
-    s = MyStyle("foo value", "bar value")
-    assert s.get("foo") == "foo value"
-    assert s.get("bar") == "bar value"
+    s = Style("fill value", "stroke value")
+    assert s.get("fill") == "fill value"
+    assert s.get("stroke") == "stroke value"
     
     # Keyword initial values should work
-    s = MyStyle(foo="foo value", bar="bar value")
-    assert s.get("foo") == "foo value"
-    assert s.get("bar") == "bar value"
+    s = Style(fill="fill value", stroke="stroke value")
+    assert s.get("fill") == "fill value"
+    assert s.get("stroke") == "stroke value"
     
     # Mixed positional and keyword initial values should work
-    s = MyStyle("foo value", bar="bar value")
-    assert s.get("foo") == "foo value"
-    assert s.get("bar") == "bar value"
+    s = Style("fill value", stroke="stroke value")
+    assert s.get("fill") == "fill value"
+    assert s.get("stroke") == "stroke value"
     
     # Providing too many positional arguments should cause an error
     with pytest.raises(ValueError):
-        MyStyle("foo value", "bar value", "xxx")
+        Style("fill", "stroke", "line_width", "dash", "line_cap", "line_join", "xxx")
     
     # Providing a value by both positional and keyword arguments should fail.
     with pytest.raises(ValueError):
-        MyStyle("foo value", foo="foo value again")
+        Style("fill value", fill="fill value again")
     
     # Providing a non-existant field should fail
     with pytest.raises(ValueError):
-        MyStyle(baz="xxx")
+        Style(baz="xxx")
 
 
 def test_style_get_set_exceptions():
-    s = MyStyle("foo style", "bar style")
+    s = Style("fill style", "stroke style")
     
     # Initially shouldn't have any exceptions
     assert None not in s
     assert 123 not in s
     
     # Should be able to change the values
-    s.set("foo", "new foo style")
-    s.set("bar", "new bar style")
-    assert s.get("foo") == "new foo style"
-    assert s.get("bar") == "new bar style"
+    s.set("fill", "new fill style")
+    s.set("stroke", "new stroke style")
+    assert s.get("fill") == "new fill style"
+    assert s.get("stroke") == "new stroke style"
     
     # Should be able to add exceptions
-    s.set(None, "foo", "None's foo style")
-    s.set(123, "foo", "123's foo style")
+    s.set(None, "fill", "None's fill style")
+    s.set(123, "fill", "123's fill style")
     
-    assert s.get("foo") == "new foo style"
-    assert s.get(None, "foo") == "None's foo style"
-    assert s.get(123, "foo") == "123's foo style"
+    assert s.get("fill") == "new fill style"
+    assert s.get(None, "fill") == "None's fill style"
+    assert s.get(123, "fill") == "123's fill style"
     
     assert None in s
     assert 123in s
     
     # Exceptions need not have all values defined uniquely and those not set
     # should fall through to the default types
-    assert s.get(None, "bar") == "new bar style"
-    assert s.get(123, "bar") == "new bar style"
+    assert s.get(None, "stroke") == "new stroke style"
+    assert s.get(123, "stroke") == "new stroke style"
     
     # Changing the underlying value should still shine through those unset
     # exception fields too
-    s.set("foo", "newer foo style")
-    s.set("bar", "newer bar style")
+    s.set("fill", "newer fill style")
+    s.set("stroke", "newer stroke style")
     
-    assert s.get("foo") == "newer foo style"
-    assert s.get(None, "foo") == "None's foo style"
-    assert s.get(123, "foo") == "123's foo style"
+    assert s.get("fill") == "newer fill style"
+    assert s.get(None, "fill") == "None's fill style"
+    assert s.get(123, "fill") == "123's fill style"
     
-    assert s.get("bar") == "newer bar style"
-    assert s.get(None, "bar") == "newer bar style"
-    assert s.get(123, "bar") == "newer bar style"
+    assert s.get("stroke") == "newer stroke style"
+    assert s.get(None, "stroke") == "newer stroke style"
+    assert s.get(123, "stroke") == "newer stroke style"
     
     # If no exceptions are present, the default values should appear
-    assert s.get(321, "foo") == "newer foo style"
-    assert s.get(321, "bar") == "newer bar style"
+    assert s.get(321, "fill") == "newer fill style"
+    assert s.get(321, "stroke") == "newer stroke style"
     
     # Get/Set should fail with too many/not enoguh arguments
     with pytest.raises(ValueError):
@@ -106,32 +102,32 @@ def test_style_get_set_exceptions():
 
 
 def test_style_copy():
-    s1 = MyStyle("foo style", "bar style")
-    s1.set(123, "foo", "123's foo style")
+    s1 = Style("fill style", "stroke style")
+    s1.set(123, "fill", "123's fill style")
     
     s2 = s1.copy()
     
     # The copy should be of the correct type
-    assert type(s2) is type(s1) is MyStyle
+    assert type(s2) is type(s1) is Style
     
     # The copy should initially match the copy
-    assert s2.get("foo") == s1.get("foo")
-    assert s2.get("bar") == s1.get("bar")
-    assert s2.get(123, "foo") == s1.get(123, "foo")
-    assert s2.get(123, "bar") == s1.get(123, "bar")
+    assert s2.get("fill") == s1.get("fill")
+    assert s2.get("stroke") == s1.get("stroke")
+    assert s2.get(123, "fill") == s1.get(123, "fill")
+    assert s2.get(123, "stroke") == s1.get(123, "stroke")
     
     # When modified, the copies should nolonger match
-    s2.set("foo", "new foo style")
-    assert s1.get("foo") == "foo style"
-    assert s2.get("foo") == "new foo style"
+    s2.set("fill", "new fill style")
+    assert s1.get("fill") == "fill style"
+    assert s2.get("fill") == "new fill style"
     
-    s1.set("bar", "new bar style")
-    assert s1.get("bar") == "new bar style"
-    assert s2.get("bar") == "bar style"
+    s1.set("stroke", "new stroke style")
+    assert s1.get("stroke") == "new stroke style"
+    assert s2.get("stroke") == "stroke style"
     
-    s2.set(123, "foo", "123's new foo style")
-    assert s1.get(123, "foo") == "123's foo style"
-    assert s2.get(123, "foo") == "123's new foo style"
+    s2.set(123, "fill", "123's new fill style")
+    assert s1.get(123, "fill") == "123's fill style"
+    assert s2.get(123, "fill") == "123's new fill style"
 
 
 def test_cairo_polygon_styling():

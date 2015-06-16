@@ -19,14 +19,14 @@ from six import iteritems
 
 import cairocffi as cairo
 
-from parspective.diagram import \
+from rig_par_diagram.diagram import \
     Diagram, \
     default_chip_style, \
     default_link_style, \
     default_core_style, \
     default_net_style
 
-from parspective.style import Style
+from rig_par_diagram.style import Style
 
 import rig
 

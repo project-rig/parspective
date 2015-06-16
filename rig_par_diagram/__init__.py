@@ -1,4 +1,4 @@
-from parspective.diagram import \
+from rig_par_diagram.diagram import \
     Diagram, \
     default_chip_style, \
     default_link_style, \

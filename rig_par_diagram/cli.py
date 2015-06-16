@@ -1,4 +1,4 @@
-"""A stand-alone command-line front end to P&Rspective.
+"""A stand-alone command-line front end to Rig P&R Diagram.
 
 The principle input format to the program is pickled Rig netlists and other
 relevant metadata.
@@ -12,10 +12,10 @@ subset of the following:
   * 'placements': A valid set of placements.
   * 'allocations': A valid set of allocations.
   * 'routes': A valid set of routes.
-  * 'chip_style': A P&Rspective Style object.
-  * 'link_style': A P&Rspective Style object.
-  * 'core_style': A P&Rspective Style object.
-  * 'net_style': A P&Rspective Style object.
+  * 'chip_style': A Rig P&R Diagram Style object.
+  * 'link_style': A Rig P&R Diagram Style object.
+  * 'core_style': A Rig P&R Diagram Style object.
+  * 'net_style': A Rig P&R Diagram Style object.
 """
 
 import argparse
@@ -36,7 +36,7 @@ from rig.machine import Machine, Links, Cores
 
 from rig.place_and_route.constraints import ReserveResourceConstraint
 
-from parspective import \
+from rig_par_diagram import \
     Diagram, \
     default_chip_style, \
     default_link_style, \

@@ -18,9 +18,9 @@ from rig.place_and_route.constraints import ReserveResourceConstraint
 
 from rig.place_and_route.routing_tree import RoutingTree
 
-from parspective.geometry import get_core_ring_position
+from rig_par_diagram.geometry import get_core_ring_position
 
-from parspective.style import Style
+from rig_par_diagram.style import Style
 
 
 default_chip_style = Style(fill=(1.0, 1.0, 1.0, 1.0),
@@ -121,7 +121,7 @@ class Diagram(object):
             
             Any vertices which don't have this resource allocated to them will not
             be drawn.
-        chip_style : :py:class:`parspective.style.Style`
+        chip_style : :py:class:`rig_par_diagram.style.Style`
             The style with which chips are drawn. Each chip is represented as a
             hexagon which will be styled with the supplied style. Style exceptions
             for (x, y) coordinates can be used to individually control the
@@ -129,14 +129,14 @@ class Diagram(object):
         chip_spacing : float
             The amount of space between neighbouring chips. Note that this space is
             where the chip-to-chip links are drawn and so should be set > 0.
-        link_style : :py:class:`parspective.style.Style`
+        link_style : :py:class:`rig_par_diagram.style.Style`
             The style with which chip-to-chip links are drawn. Links are drawn as a
             solid rectangle connecting the corresponding edges of a hexagonal chip.
             Dead links are not drawn. Style exceptions may be listed for (x, y,
             link) tuples to style individual links differently. Note that
             both ends of a link must be given the same style exception otherwise
             the behaviour is undefined.
-        core_style : :py:class:`parspective.style.Style`
+        core_style : :py:class:`rig_par_diagram.style.Style`
             The style with which cores are drawn. Each core is represented as a
             circle inside its associated chip, styled with the supplied style. The
             following style exceptions are supported to control the styling of
@@ -148,7 +148,7 @@ class Diagram(object):
               :py:class:`rig.place_and_route.constraints.ReserveResourceConstraint`.
         core_spacing : float
             The amount of space between the cores drawn inside each chip.
-        net_style : :py:class:`parspective.style.Style`
+        net_style : :py:class:`rig_par_diagram.style.Style`
             The style which is used to draw the paths of routed nets and ratsnests.
             Note that if line_width is not specified, the line-width will be set
             based on the net's weight (recommended). Style exceptions can be given

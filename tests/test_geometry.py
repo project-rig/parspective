@@ -1,6 +1,6 @@
 import pytest
 
-from parspective.geometry import get_core_ring_position
+from rig_par_diagram.geometry import get_core_ring_position
 
 def test_get_core_ring_position():
     # Single-core case

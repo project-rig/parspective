@@ -12,10 +12,10 @@ from rig.machine import Machine, Cores
 
 from rig.place_and_route.constraints import ReserveResourceConstraint
 
-from parspective.cli import \
+from rig_par_diagram.cli import \
     main, read_netlist, get_machine, place, allocate, route
 
-from parspective import default_core_style
+from rig_par_diagram import default_core_style
 
 @pytest.yield_fixture
 def filename():
@@ -216,7 +216,7 @@ def test_auto_par(filename, args, given_machine, placed, allocated, routed,
             netlist["routes"] = {}
         pickle.dump(netlist, f)
     
-    from parspective import cli
+    from rig_par_diagram import cli
     monkeypatch.setattr(cli, "place", Mock(side_effect=cli.place))
     monkeypatch.setattr(cli, "allocate", Mock(side_effect=cli.allocate))
     monkeypatch.setattr(cli, "route", Mock(side_effect=cli.route))
@@ -244,7 +244,7 @@ def test_auto_colour_constraints(filename, args, should_colour, monkeypatch):
         netlist["core_style"].set(netlist["constraints"][1], "fill", None)
         pickle.dump(netlist, f)
     
-    from parspective import cli
+    from rig_par_diagram import cli
     monkeypatch.setattr(cli, "Diagram",
         Mock(side_effect=cli.Diagram))
     
@@ -279,7 +279,7 @@ def test_auto_monitor_constraint(filename, args, has_constraints,
             netlist["constraints"] = []
         pickle.dump(netlist, f)
     
-    from parspective import cli
+    from rig_par_diagram import cli
     monkeypatch.setattr(cli, "Diagram",
         Mock(side_effect=cli.Diagram))
     

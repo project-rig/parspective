@@ -1,11 +1,10 @@
 """Style definitions data structures.
 
-Various elements of P&Rspective's output can have their appearence customised,
-for examlpe changing colours or line styles. It is also useful to be able to
-make exceptions to these styles, for example, to highlight a certain net or
-colour code cores in the diagram. The Style object helps facilitate this
-functionality.
-"""
+Various elements of Rig P&R Diagram's output can have their appearence
+customised, for examlpe changing colours or line styles. It is also useful to be
+able to make exceptions to these styles, for example, to highlight a certain net
+or colour code cores in the diagram. The Style object helps facilitate this
+functionality.  """
 
 from six import iteritems
 
@@ -13,7 +12,7 @@ class Style(object):
     """Defines the style of a polygon to be drawn.
     
     Thie Style object defines a set of Cairo drawing parameters (see
-    :py:meth:`.FIELDS`) for the drawing of certain elements in P&Rspective
+    :py:meth:`.FIELDS`) for the drawing of certain elements in Rig P&R Diagram
     diagrams. For example, :py:class:`.Style`s are used to define how chips,
     links cores and nets are drawn. Exceptions can be added to the style to
     allow individual instances to have their style options altered.
