@@ -10,6 +10,11 @@ Here's an example image produced by the tool:
 
 ![Fully placed and routed](./example_images/fully_routed.png)
 
+You can get the latest released version of Rig P&R Diagram from
+[PyPi](https://pypi.python.org/pypi/rig_par_diagram):
+
+    $ pip install rig_par_diagram
+
 Commandline Utility
 -------------------
 
