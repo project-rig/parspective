@@ -623,7 +623,7 @@ class Diagram(object):
         # Expand to fit half a chip-to-chip gap plus the fade-out-distance on
         # all sides of the diagram.
         spacing = (((1.0 + (self.chip_style.get("line_width") or 0.0)) / 2.0) +
-                   self.chip_spacing)
+                   self.chip_spacing * 2)
         x1 -= spacing
         y1 -= spacing
         x2 += spacing
