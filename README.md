@@ -6,20 +6,9 @@ generate diagrams of the resulting placements. This library aims to produce
 attractive and informative placement and routing diagrams from the data types
 used by [Rig](https://github.com/project-rig/rig)'s place and route flow.
 
-Gallery
--------
-
-A fully placed and routed netlist:
+Here's an example image produced by the tool:
 
 ![Fully placed and routed](./example_images/fully_routed.png)
-
-A smaller fully placed and routed netlist showing wrap-around links:
-
-![Example with wrap-around](./example_images/small_routed.png)
-
-Another smaller example but this time with routes replaced with a ratsnest:
-
-![Example with ratsnest](./example_images/ratsnest.png)
 
 Commandline Utility
 -------------------
