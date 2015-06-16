@@ -162,7 +162,7 @@ class Style(object):
         """Test whether the style has any exceptions for a given object."""
         return exception in self._exceptions
     
-    def __call__(self, ctx, *exception, no_fill_stroke=False):
+    def __call__(self, ctx, *exception, **kwargs):
         """Create a context manager object which applies this Style to any Cairo
         paths drawn within the context.
         
@@ -210,16 +210,17 @@ class Style(object):
         if len(exception) > 1:
             raise ValueError("expected 2 or 3 arguments")
         return self.ContextMgr(self, ctx, *exception,
-                               no_fill_stroke=no_fill_stroke)
+                               no_fill_stroke=
+                                   kwargs.get("no_fill_stroke", False))
     
     class ContextMgr(object):
         """The context manager returned by calling a PolygonStyle instance."""
         
-        def __init__(self, style, ctx, *exception, no_fill_stroke=False):
+        def __init__(self, style, ctx, *exception, **kwargs):
             self.style = style
             self.ctx = ctx
             self.exception = list(exception)
-            self.no_fill_stroke = no_fill_stroke
+            self.no_fill_stroke = kwargs.get("no_fill_stroke", False)
         
         def __enter__(self):
             self.ctx.save()

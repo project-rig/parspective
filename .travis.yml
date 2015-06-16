@@ -14,7 +14,7 @@ script:
                     --cov tests \
                     --durations=10
         # Code quality check
-        - flake8 rig
+        - flake8 rig_par_diagram tests
 after_success:
         - coveralls
 notifications:
