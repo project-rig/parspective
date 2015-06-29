@@ -358,7 +358,10 @@ class Diagram(object):
             max_allowed_net_width = self._core_diameter * 0.333
             
             # Determine the maximum weight allocated to any net
-            max_net_weight = max((n.weight for n in self.nets), default=0.0)
+            if self.nets:
+                max_net_weight = max((n.weight for n in self.nets))
+            else:
+                max_net_weight = 0.0
             
             if max_net_weight > 0:
                 self.net_weight_scale = max_allowed_net_width / max_net_weight
