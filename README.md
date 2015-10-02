@@ -37,6 +37,8 @@ the following entries:
 * `"placements"`: A valid set of placements.
 * `"allocations"`: A valid set of allocations.
 * `"routes"`: A valid set of routes.
+* `"core_resource"`: The resource type used to indicate cores in the netlist
+  (defaults to `Cores`).
 * `"chip_style"`: A Rig P&R Diagram Style object.
 * `"link_style"`: A Rig P&R Diagram Style object.
 * `"core_style"`: A Rig P&R Diagram Style object.

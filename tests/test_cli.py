@@ -65,6 +65,12 @@ def test_get_machine():
     # Shouldn't be able to pass in anything invalid
     with pytest.raises(SystemExit):
         get_machine("foo")
+    
+    # Should have the right types of core resource
+    for spec in [None, "spinn3", "spinn5", "8x8"]:
+        m = get_machine(spec, "cores")
+        assert "cores" in m.chip_resources
+        assert Cores not in m.chip_resources
 
 
 def test_place(monkeypatch):
@@ -254,6 +260,29 @@ def test_auto_colour_constraints(filename, args, should_colour, monkeypatch):
     
     # Constraint style should have been added if requested.
     assert len(call_kwargs["core_style"]._exceptions) == 3 if should_colour else 2
+
+
+def test_core_resource(filename, monkeypatch):
+    # Test that the core_resource option actually gets taken into account.
+    with open(filename, "wb") as f:
+        netlist = {
+            "vertices_resources": {},
+            "nets": [],
+            "core_resource": "cores",
+        }
+        pickle.dump(netlist, f)
+    
+    from rig_par_diagram import cli
+    monkeypatch.setattr(cli, "Diagram",
+        Mock(side_effect=cli.Diagram))
+    
+    assert main("app {} /dev/null 10 10".format(filename).split()) == 0
+    
+    call_kwargs = cli.Diagram.mock_calls[0][2]
+    
+    assert "cores" in call_kwargs["machine"].chip_resources
+    assert Cores not in call_kwargs["machine"].chip_resources
+    assert call_kwargs["core_resource"] == "cores"
 
 
 @pytest.mark.parametrize("args,has_constraints,should_reserve", [

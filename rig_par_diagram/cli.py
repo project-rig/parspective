@@ -71,13 +71,16 @@ def read_netlist(filename):
     return netlist
 
 
-def get_machine(spec=None):
+def get_machine(spec=None, core_resource=Cores):
     """Get a rig Machine object based on the supplied specification."""
     if spec is None:
         # Default to a SpiNN-5 board
-        return get_machine("spinn5")
+        return get_machine("spinn5", core_resource)
     elif spec == "spinn3":
         machine = Machine(2, 2)
+        if core_resource is not Cores:
+            machine.chip_resources[core_resource] = machine.chip_resources[Cores]
+            del machine.chip_resources[Cores]
         
         machine.dead_links.add((0, 0, Links.south_west))
         machine.dead_links.add((1, 1, Links.north_east))
@@ -94,6 +97,9 @@ def get_machine(spec=None):
         return machine
     elif spec == "spinn5":
         machine = Machine(8, 8)
+        if core_resource is not Cores:
+            machine.chip_resources[core_resource] = machine.chip_resources[Cores]
+            del machine.chip_resources[Cores]
         
         # Kill all chips outside the board
         nominal_live_chips = set([  # noqa
@@ -135,7 +141,12 @@ def get_machine(spec=None):
         x = int(x)
         y = int(y)
         
-        return Machine(x, y)
+        machine = Machine(x, y)
+        if core_resource is not Cores:
+            machine.chip_resources[core_resource] = machine.chip_resources[Cores]
+            del machine.chip_resources[Cores]
+        
+        return machine
 
 
 def place(vertices_resources, nets, machine, constraints, algorithm="default"):
@@ -293,6 +304,9 @@ def main(argv=sys.argv):
     else:
         netlist = {}
     
+    # Work out what resource type cores are represented by
+    core_resource = netlist.get("core_resource", Cores)
+    
     vertices_resources = netlist.get("vertices_resources", {})
     nets = netlist.get("nets", [])
     
@@ -301,7 +315,7 @@ def main(argv=sys.argv):
     machine = netlist.get("machine", None)
     machine_overridden = False
     if machine is None or args.machine:
-        machine = get_machine(args.machine)
+        machine = get_machine(args.machine, core_resource)
         machine_overridden = True
     
     # If no constraints are supplied, reserve the monitor processor
@@ -309,7 +323,7 @@ def main(argv=sys.argv):
         constraints = netlist["constraints"]
     elif not args.no_reserve_monitor:
         constraints = [
-            ReserveResourceConstraint(Cores, slice(0, 1)),
+            ReserveResourceConstraint(core_resource, slice(0, 1)),
         ]
     else:
         constraints = []
@@ -361,6 +375,7 @@ def main(argv=sys.argv):
     d = Diagram(machine=machine, vertices_resources=vertices_resources,
                 nets=nets, constraints=constraints, placements=placements,
                 allocations=allocations, routes=routes,
+                core_resource=core_resource,
                 chip_style=chip_style, link_style=link_style,
                 core_style=core_style, net_style=net_style)
     
