@@ -204,7 +204,7 @@ def allocate(vertices_resources, nets, machine, constraints,
 
 
 def route(vertices_resources, nets, machine, constraints,
-          placements, allocations, algorithm="default"):
+          placements, allocations, algorithm, core_resource):
     """Route all nets in the specified netlist."""
     if algorithm == "default":
         module = "rig.place_and_route"
@@ -223,7 +223,7 @@ def route(vertices_resources, nets, machine, constraints,
     
     before = time.time()
     routes = router(vertices_resources, nets, machine, constraints,
-                    placements, allocations)
+                    placements, allocations, core_resource)
     after = time.time()
     
     logger.info("Routed netlist in {:.2f}s".format(after - before))
@@ -351,7 +351,8 @@ def main(argv=sys.argv):
     routes = netlist.get("routes", None)
     if (routes is None or args.route or allocations_overridden) and not args.ratsnest:
         routes = route(vertices_resources, nets, machine, constraints,
-                       placements, allocations, args.route or "default")
+                       placements, allocations, args.route or "default",
+                       core_resource)
     
     # Delete the routes if a ratsnest is required
     if args.ratsnest:

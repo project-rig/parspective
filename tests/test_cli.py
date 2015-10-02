@@ -144,26 +144,26 @@ def test_route(monkeypatch):
     monkeypatch.setattr(par_module, "route", mock_default)
     
     # Should default to the default algorithm
-    route(None, None, None, None, None, None)
+    route(None, None, None, None, None, None, "default", Cores)
     assert mock_default.called
     assert not mock_ner.called
     mock_default.reset_mock()
     
     # Should default to the default algorithm when asked for the default
-    route(None, None, None, None, None, None, "default")
+    route(None, None, None, None, None, None, "default", Cores)
     assert mock_default.called
     assert not mock_ner.called
     mock_default.reset_mock()
     
     # Should use an alternative when asked
-    route(None, None, None, None, None, None, "ner")
+    route(None, None, None, None, None, None, "ner", Cores)
     assert not mock_default.called
     assert mock_ner.called
     mock_ner.reset_mock()
     
     # Should fail if unknown
     with pytest.raises(SystemExit):
-        route(None, None, None, None, None, None, "doesnotexist")
+        route(None, None, None, None, None, None, "doesnotexist", Cores)
 
 
 @pytest.mark.parametrize(
